@@ -46,6 +46,7 @@ struct GlGlobals
 	GLFWwindow **pWindow;
 #endif
 	int presentWidth, presentHeight;
+	int presentOffX, presentOffY;
 
 	// for opening the window
 	int winWidth, winHeight;
@@ -421,7 +422,6 @@ bindTexture(uint32 texid)
 void
 bindFramebuffer(uint32 fbo)
 {
-	//glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	if(currentFramebuffer != fbo){
 		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 		currentFramebuffer = fbo;
@@ -1031,8 +1031,8 @@ flushCache(void)
 static void
 setFrameBuffer(Camera *cam)
 {
-	Raster *fbuf = cam->frameBuffer;
-	Raster *zbuf = cam->zBuffer;
+	Raster *fbuf = cam->frameBuffer->parent;
+	Raster *zbuf = cam->zBuffer->parent;
 	assert(fbuf);
 
 	Gl3Raster *natfb = PLUGINOFFSET(Gl3Raster, fbuf, nativeRasterOffset);
@@ -1146,22 +1146,43 @@ beginUpdate(Camera *cam)
 	setFrameBuffer(cam);
 
 	int w, h;
-	if(cam->frameBuffer->type == Raster::CAMERA){
+	int x, y;
+	Raster *fb = cam->frameBuffer->parent;
+	if(fb->type == Raster::CAMERA){
 #ifdef LIBRW_SDL2
 		SDL_GetWindowSize(glGlobals.window, &w, &h);
 #else
 		glfwGetWindowSize(glGlobals.window, &w, &h);
 #endif
 	}else{
+		w = fb->width;
+		h = fb->height;
+	}
+	x = 0;
+	y = 0;
+
+	// Got a subraster
+	if(cam->frameBuffer != fb){
+		x = cam->frameBuffer->offsetX;
+		// GL y offset is from bottom
+		y = h - cam->frameBuffer->height - cam->frameBuffer->offsetY;
 		w = cam->frameBuffer->width;
 		h = cam->frameBuffer->height;
 	}
 
-	if(w != glGlobals.presentWidth || h != glGlobals.presentHeight){
-		glViewport(0, 0, w, h);
+	if(w != glGlobals.presentWidth || h != glGlobals.presentHeight ||
+	   x != glGlobals.presentOffX || y != glGlobals.presentOffY){
+		glViewport(x, y, w, h);
 		glGlobals.presentWidth = w;
 		glGlobals.presentHeight = h;
+		glGlobals.presentOffX = x;
+		glGlobals.presentOffY = y;
 	}
+}
+
+static void
+endUpdate(Camera *cam)
+{
 }
 
 static void
@@ -1506,6 +1527,8 @@ startGLFW(void)
 	*glGlobals.pWindow = win;
 	glGlobals.presentWidth = 0;
 	glGlobals.presentHeight = 0;
+	glGlobals.presentOffX = 0;
+	glGlobals.presentOffY = 0;
 	return 1;
 }
 
@@ -1733,7 +1756,7 @@ deviceSystemGLFW(DeviceReq req, void *arg, int32 n)
 Device renderdevice = {
 	-1.0f, 1.0f,
 	gl3::beginUpdate,
-	null::endUpdate,
+	gl3::endUpdate,
 	gl3::clearCamera,
 	gl3::showRaster,
 	gl3::rasterRenderFast,
