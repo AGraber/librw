@@ -170,11 +170,15 @@ static uint32 cullmodeMap[] = {
 	D3DCULL_CCW
 };
 
-// TODO: support mipmaps
-static uint32 filterConvMap_NoMIP[] = {
+static uint32 filterConvMap[] = {
 	0, D3DTEXF_POINT, D3DTEXF_LINEAR,
 	   D3DTEXF_POINT, D3DTEXF_LINEAR,
 	   D3DTEXF_POINT, D3DTEXF_LINEAR
+};
+static uint32 filterConvMap_MIP[] = {
+	0, D3DTEXF_NONE, D3DTEXF_NONE,
+	   D3DTEXF_POINT, D3DTEXF_POINT,
+	   D3DTEXF_LINEAR, D3DTEXF_LINEAR
 };
 static uint32 addressConvMap[] = {
 	0, D3DTADDRESS_WRAP, D3DTADDRESS_MIRROR,
@@ -298,14 +302,15 @@ restoreD3d9Device(void)
 	for(i = 0; i < MAXNUMSTAGES; i++){
 		Raster *raster = rwStateCache.texstage[i].raster;
 		if(raster){
-			D3dRaster *d3draster = PLUGINOFFSET(D3dRaster, raster, nativeRasterOffset);
+			D3dRaster *d3draster = GETD3DRASTEREXT(raster);
 			d3ddevice->SetTexture(i, (IDirect3DTexture9*)d3draster->texture);
 		}else
 			d3ddevice->SetTexture(i, nil);
 		setSamplerState(i, D3DSAMP_ADDRESSU, addressConvMap[rwStateCache.texstage[i].addressingU]);
 		setSamplerState(i, D3DSAMP_ADDRESSV, addressConvMap[rwStateCache.texstage[i].addressingV]);
-		setSamplerState(i, D3DSAMP_MAGFILTER, filterConvMap_NoMIP[rwStateCache.texstage[i].filter]);
-		setSamplerState(i, D3DSAMP_MINFILTER, filterConvMap_NoMIP[rwStateCache.texstage[i].filter]);
+		setSamplerState(i, D3DSAMP_MAGFILTER, filterConvMap[rwStateCache.texstage[i].filter]);
+		setSamplerState(i, D3DSAMP_MINFILTER, filterConvMap[rwStateCache.texstage[i].filter]);
+		setSamplerState(i, D3DSAMP_MIPFILTER, filterConvMap_MIP[rwStateCache.texstage[i].filter]);
 	}
 	for(s = 0; s < MAXNUMSTATES; s++)
 		if(validStates[s])
@@ -342,7 +347,7 @@ evictD3D9Raster(Raster *raster)
 {
 	int i;
 	// Make sure we're not still referencing this raster
-	D3dRaster *natras = PLUGINOFFSET(D3dRaster, raster, nativeRasterOffset);
+	D3dRaster *natras = GETD3DRASTEREXT(raster);
 	switch(raster->type){
 	case Raster::CAMERATEXTURE:
 		for(i = 0; i < MAXNUMRENDERTARGETS; i++)
@@ -416,7 +421,7 @@ setRasterStage(uint32 stage, Raster *raster)
 		if(raster){
 			assert(raster->platform == PLATFORM_D3D8 ||
 				raster->platform == PLATFORM_D3D9);
-			d3draster = PLUGINOFFSET(D3dRaster, raster, nativeRasterOffset);
+			d3draster = GETD3DRASTEREXT(raster);
 			d3ddevice->SetTexture(stage, (IDirect3DTexture9*)d3draster->texture);
 			alpha = d3draster->hasAlpha;
 		}else{
@@ -438,11 +443,11 @@ setRasterStage(uint32 stage, Raster *raster)
 static void
 setFilterMode(uint32 stage, int32 filter)
 {
-	// TODO: mip mapping
 	if(rwStateCache.texstage[stage].filter != (Texture::FilterMode)filter){
 		rwStateCache.texstage[stage].filter = (Texture::FilterMode)filter;
-		setSamplerState(stage, D3DSAMP_MAGFILTER, filterConvMap_NoMIP[filter]);
-		setSamplerState(stage, D3DSAMP_MINFILTER, filterConvMap_NoMIP[filter]);
+		setSamplerState(stage, D3DSAMP_MAGFILTER, filterConvMap[filter]);
+		setSamplerState(stage, D3DSAMP_MINFILTER, filterConvMap[filter]);
+		setSamplerState(stage, D3DSAMP_MIPFILTER, filterConvMap_MIP[filter]);
 	}
 }
 
@@ -807,7 +812,7 @@ setRenderSurfaces(Camera *cam)
 	Raster *fbuf = cam->frameBuffer;
 	assert(fbuf);
 	{
-		D3dRaster *natras = PLUGINOFFSET(D3dRaster, fbuf, nativeRasterOffset);
+		D3dRaster *natras = GETD3DRASTEREXT(fbuf);
 		assert(fbuf->type == Raster::CAMERA || fbuf->type == Raster::CAMERATEXTURE);
 		if(natras->texture == nil)
 			setRenderTarget(0, d3d9Globals.defaultRenderTarget);
@@ -822,7 +827,7 @@ setRenderSurfaces(Camera *cam)
 
 	Raster *zbuf = cam->zBuffer;
 	if(zbuf){
-		D3dRaster *natras = PLUGINOFFSET(D3dRaster, zbuf, nativeRasterOffset);
+		D3dRaster *natras = GETD3DRASTEREXT(zbuf);
 		assert(zbuf->type == Raster::ZBUFFER);
 		setDepthSurface(natras->texture);
 	}else
@@ -962,7 +967,7 @@ releaseVidmemRasters(void)
 	D3dRaster *natras;
 	for(vmr = vidmemRasters; vmr; vmr = vmr->next){
 		raster = vmr->raster;
-		natras = PLUGINOFFSET(D3dRaster, raster, nativeRasterOffset);
+		natras = GETD3DRASTEREXT(raster);
 		switch(raster->type){
 		case Raster::CAMERATEXTURE:
 			destroyTexture(natras->texture);
@@ -988,7 +993,7 @@ recreateVidmemRasters(void)
 	D3dRaster *natras;
 	for(vmr = vidmemRasters; vmr; vmr = vmr->next){
 		raster = vmr->raster;
-		natras = PLUGINOFFSET(D3dRaster, raster, nativeRasterOffset);
+		natras = GETD3DRASTEREXT(raster);
 		switch(raster->type){
 		case Raster::CAMERATEXTURE: {
 			int32 levels = Raster::calculateNumLevels(raster->width, raster->height);
@@ -1170,6 +1175,8 @@ clearCamera(Camera *cam, RGBA *col, uint32 mode)
 		mode |= D3DCLEAR_TARGET;
 	if(mode & Camera::CLEARZ)
 		mode |= D3DCLEAR_ZBUFFER;
+	if(mode & Camera::CLEARSTENCIL)
+		mode |= D3DCLEAR_STENCIL;
 	D3DCOLOR c = D3DCOLOR_RGBA(col->red, col->green, col->blue, col->alpha);
 
 	RECT r;
@@ -1228,8 +1235,8 @@ rasterRenderFast(Raster *raster, int32 x, int32 y)
 
 	Raster *src = raster;
 	Raster *dst = Raster::getCurrentContext();
-	D3dRaster *natdst = PLUGINOFFSET(D3dRaster, dst, nativeRasterOffset);
-	D3dRaster *natsrc = PLUGINOFFSET(D3dRaster, src, nativeRasterOffset);
+	D3dRaster *natdst = GETD3DRASTEREXT(dst);
+	D3dRaster *natsrc = GETD3DRASTEREXT(src);
 
 	switch(dst->type){
 	case Raster::CAMERATEXTURE:

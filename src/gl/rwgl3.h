@@ -233,8 +233,6 @@ ObjPipeline *makeDefaultPipeline(void);
 
 // Native Texture and Raster
 
-extern int32 nativeRasterOffset;
-
 struct Gl3Raster
 {
 	// arguments to glTexImage2D
@@ -245,7 +243,10 @@ struct Gl3Raster
 	// texture object
 	uint32 texid;
 
-	bool32 hasAlpha;
+	bool isCompressed;
+	bool hasAlpha;
+	bool autogenMipmap;
+	int8 numLevels;
 	// cached filtermode and addressing
 	uint8 filterMode;
 	uint8 addressU;
@@ -255,11 +256,15 @@ struct Gl3Raster
 	Raster *fboMate;	// color or zbuffer raster mate of this one
 };
 
+void allocateDXT(Raster *raster, int32 dxt, int32 numLevels, bool32 hasAlpha);
+
 Texture *readNativeTexture(Stream *stream);
 void writeNativeTexture(Texture *tex, Stream *stream);
 uint32 getSizeNativeTexture(Texture *tex);
 
+extern int32 nativeRasterOffset;
 void registerNativeRaster(void);
+#define GETGL3RASTEREXT(raster) PLUGINOFFSET(Gl3Raster, raster, rw::gl3::nativeRasterOffset)
 
 }
 }
