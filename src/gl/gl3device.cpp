@@ -1834,7 +1834,9 @@ initOpenGL(void)
 
 	resetRenderState();
 
+	#ifndef __SWITCH__
 	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
+	#endif
 
 	if(gl3Caps.glversion >= 30){
 		glGenVertexArrays(1, &vao);
