@@ -1716,7 +1716,6 @@ startGLFW(void)
 		return 0;
 	}
 	glfwMakeContextCurrent(win);
-	printf("OpenGL version: %s\n", glGetString(GL_VERSION));
 
 #ifndef LIBRW_GLAD
 	/* Init GLEW */
@@ -1745,7 +1744,7 @@ startGLFW(void)
 		return 0;
 	}*/
 #endif
-	printf("version %s\n", glGetString(GL_VERSION));
+	printf("OpenGL version: %s\n", glGetString(GL_VERSION));
 
 	printf("GL_VENDOR: %s\n", glGetString(GL_VENDOR));
 	printf("GL_RENDERER: %s\n", glGetString(GL_RENDERER));
@@ -1834,9 +1833,7 @@ initOpenGL(void)
 
 	resetRenderState();
 
-	#ifndef __SWITCH__
 	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &maxAnisotropy);
-	#endif
 
 	if(gl3Caps.glversion >= 30){
 		glGenVertexArrays(1, &vao);

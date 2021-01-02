@@ -16,15 +16,15 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 #TARGET		:=	$(notdir $(CURDIR))
 TARGET		:=	rw
-SOURCES		:=	src src/d3d src/gl src/lodepng src/ps2
+SOURCES		:=	src src/d3d src/gl src/gl/switch_glad src/lodepng src/ps2
 DATA		:=	data
-INCLUDES	:=
+INCLUDES	:=	src/gl/switch_glad
 #PORTLIBS	:= 
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIC -ftls-model=local-exec
+ARCH	:=	-march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIC -mcpu=cortex-a57+crc+fp+simd -ftls-model=local-exec
 
 CFLAGS	:=	-g \
 			-ffunction-sections \
@@ -32,7 +32,7 @@ CFLAGS	:=	-g \
 			$(ARCH) \
 			$(BUILD_CFLAGS)
 
-CFLAGS	+=	$(INCLUDE) -DSWITCH -D__SWITCH__ -DDEBUG -DRW_GL3 -DLIBRW_GLAD
+CFLAGS	+=	$(INCLUDE) -O3 -DSWITCH -D__SWITCH__ -DDEBUG -DRW_GL3 -DLIBRW_GLAD
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 

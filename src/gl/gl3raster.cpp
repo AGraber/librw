@@ -30,7 +30,6 @@ getLevelSize(Raster *raster, int32 level)
 	int s = raster->originalStride;
 	int minDim = 1;
 
-#ifndef __SWITCH__
 #ifdef RW_OPENGL
 	switch(natras->internalFormat){
 	case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
@@ -40,7 +39,6 @@ getLevelSize(Raster *raster, int32 level)
 		minDim = 4;
 		break;
 	}
-#endif
 #endif
 
 	for(i = 0; i < level; i++){
@@ -264,7 +262,6 @@ rasterCreateZbuffer(Raster *raster)
 void
 allocateDXT(Raster *raster, int32 dxt, int32 numLevels, bool32 hasAlpha)
 {
-#ifndef __SWITCH__
 #ifdef RW_OPENGL
 	assert(raster->type == Raster::TEXTURE);
 
@@ -347,7 +344,6 @@ allocateDXT(Raster *raster, int32 dxt, int32 numLevels, bool32 hasAlpha)
 	}
 
 	raster->flags &= ~Raster::DONTALLOCATE;
-#endif
 #endif
 }
 
@@ -873,7 +869,6 @@ writeNativeTexture(Texture *tex, Stream *stream)
 	if(natras->isCompressed){
 		flags |= 2;
 		switch(natras->internalFormat){
-#ifndef __SWITCH__
 #ifdef RW_OPENGL
 		case GL_COMPRESSED_RGBA_S3TC_DXT1_EXT:
 		case GL_COMPRESSED_RGB_S3TC_DXT1_EXT:
@@ -885,7 +880,6 @@ writeNativeTexture(Texture *tex, Stream *stream)
 		case GL_COMPRESSED_RGBA_S3TC_DXT5_EXT:
 			compression = 5;
 			break;
-#endif
 #endif
 		default:
 			assert(0 && "unknown compression");
