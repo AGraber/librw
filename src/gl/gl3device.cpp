@@ -16,6 +16,10 @@
 #include "rwgl3shader.h"
 #include "rwgl3impl.h"
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 #define PLUGIN_ID 0
 
 namespace rw {
@@ -1625,6 +1629,7 @@ addVideoMode(const GLFWvidmode *mode)
 
 static void
 makeVideoModeList(void)
+#ifndef __SWITCH__
 {
 	int i, num;
 	const GLFWvidmode *modes;
@@ -1648,6 +1653,32 @@ makeVideoModeList(void)
 		for(glGlobals.modes[i].depth = 1; glGlobals.modes[i].depth < num; glGlobals.modes[i].depth <<= 1);
 	}
 }
+#else
+// stub video mode manually
+{
+	glGlobals.modes = rwNewT(DisplayMode, 1, ID_DRIVER | MEMDUR_EVENT);
+
+	int width, height;
+	if(appletGetOperationMode() == AppletOperationMode_Console) {
+		width = 1920;
+		height = 1080;
+	} else {
+		width = 1280;
+		height = 720;
+	}
+
+	glGlobals.modes[0].mode.redBits = 8;
+	glGlobals.modes[0].mode.greenBits = 8;
+	glGlobals.modes[0].mode.blueBits = 8;
+	glGlobals.modes[0].mode.width = width;
+	glGlobals.modes[0].mode.height = height;
+	glGlobals.modes[0].mode.refreshRate = 60;
+	glGlobals.modes[0].depth = 32;
+	glGlobals.modes[0].flags = VIDEOMODEEXCLUSIVE;
+
+	glGlobals.numModes = 1;
+}
+#endif
 
 static int
 openGLFW(EngineOpenParams *openparams)
@@ -1665,7 +1696,12 @@ openGLFW(EngineOpenParams *openparams)
 		return 0;
 	}
 
+	#ifndef __SWITCH__
 	glGlobals.monitor = glfwGetMonitors(&glGlobals.numMonitors)[0];
+	#else
+	glGlobals.monitor = glfwGetPrimaryMonitor();
+	glGlobals.numMonitors = 1;
+	#endif
 
 	makeVideoModeList();
 
@@ -1985,18 +2021,29 @@ deviceSystemGLFW(DeviceReq req, void *arg, int32 n)
 		return glGlobals.currentMonitor;
 
 	case DEVICESETSUBSYSTEM:
+		#ifndef __SWITCH__
 		monitors = glfwGetMonitors(&glGlobals.numMonitors);
 		if(n >= glGlobals.numMonitors)
 			return 0;
 		glGlobals.currentMonitor = n;
 		glGlobals.monitor = monitors[glGlobals.currentMonitor];
+		#else
+		if(n != 0)
+			return 0;
+		#endif
 		return 1;
 
 	case DEVICEGETSUBSSYSTEMINFO:
+		#ifndef __SWITCH__
 		monitors = glfwGetMonitors(&glGlobals.numMonitors);
 		if(n >= glGlobals.numMonitors)
 			return 0;
 		strncpy(((SubSystemInfo*)arg)->name, glfwGetMonitorName(monitors[n]), sizeof(SubSystemInfo::name));
+		#else
+		if(n != 0)
+			return 0;
+		strncpy(((SubSystemInfo*)arg)->name, "Nintendo Switch Monitor Stub", sizeof(SubSystemInfo::name));
+		#endif
 		return 1;
 
 
@@ -2014,8 +2061,18 @@ deviceSystemGLFW(DeviceReq req, void *arg, int32 n)
 
 	case DEVICEGETVIDEOMODEINFO:
 		rwmode = (VideoMode*)arg;
+		#ifdef __SWITCH__
+		if(appletGetOperationMode() == AppletOperationMode_Console) {
+			rwmode->width = 1920;
+			rwmode->height = 1080;
+		} else {
+			rwmode->width = 1280;
+			rwmode->height = 720;
+		}
+		#else
 		rwmode->width = glGlobals.modes[n].mode.width;
 		rwmode->height = glGlobals.modes[n].mode.height;
+		#endif
 		rwmode->depth = glGlobals.modes[n].depth;
 		rwmode->flags = glGlobals.modes[n].flags;
 		return 1;
